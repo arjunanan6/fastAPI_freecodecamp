@@ -17,11 +17,12 @@ class Post(BaseModel):
 my_posts: dict[str | Any] = [{"title": "Title of post 1", "content": "Post 1", "id": 1},
  {"title": "Title of post 2", "content": "Post 2", "id": 2}]
 
-def find_post(id: int):
+def find_post(id):
     for p in my_posts:
+        # Do not use else statement here as it fails to iterate over rows.
         if p["id"] == id:
             return p
-        # Do not use else statement here as it fails to iterate over rows.
+        
 
 @app.get("/")
 def root():
@@ -35,7 +36,7 @@ def get_posts():
 # post in the following is a model inherited from the Post class where our type validation is done.
 @app.post("/posts")
 def create_posts(post: Post):
-    # Doing this because we are not using a transactional database. 
+    # Doing this because there is no transactional database (yet). 
     post_dict = post.dict()
     post_dict['id'] = randrange(0, 10000000000)
     my_posts.append(post_dict)  #Every pydantic model can be converted to a dictionary if needed with dict()
