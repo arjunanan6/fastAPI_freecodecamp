@@ -48,9 +48,7 @@ while True:
         time.sleep(2)
 
 
-@app.get("/")
-def root():
-    return {"message": "Hello testing"}
+# Get ALL posts
 
 
 @app.get("/posts")
@@ -73,10 +71,16 @@ def create_posts(post: Post):
     return {"data": new_post}
 
 
+# Get latest posts
+
+
 @app.get("/posts/latest")
 def get_latest_post():
     latest_post = my_posts[len(my_posts) - 1]
     return {"detail": "latest_post"}
+
+
+# Get post by ID
 
 
 @app.get("/posts/{id}")
@@ -91,6 +95,9 @@ def get_post(id: int, response: Response):
     return {"post_detail": post}
 
 
+# Delete specific post
+
+
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int):
     cursor.execute("""DELETE FROM posts where id = %s RETURNING *""", (str(id)))
@@ -101,6 +108,9 @@ def delete_post(id: int):
             status_code=status.HTTP_404_NOT_FOUND, detail=f"post ID {id} not found."
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# Update a post
 
 
 @app.put("/posts/{id}")
