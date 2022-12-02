@@ -1,3 +1,6 @@
 .mypy_cache/*
 venv/*
 .vscode/*
+.env
+__pycache__/*
+old_functions.py
