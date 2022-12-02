@@ -1,5 +1,5 @@
 # FastAPI Course from FreeCodeCamp
-Free tutorial on FastAPI[Course Link](https://www.youtube.com/watch?v=0sOvCWFmrtA)
+Free tutorial on FastAPI: [Course Link](https://www.youtube.com/watch?v=0sOvCWFmrtA)
 
 Creating a simple web app with API endpoints, and a few customizations beyond the course:
 
