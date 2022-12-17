@@ -4,7 +4,7 @@ import psycopg2.extensions
 from psycopg2.extras import LoggingConnection, LoggingCursor
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

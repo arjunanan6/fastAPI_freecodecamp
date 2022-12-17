@@ -1,22 +1,28 @@
-from fastapi import FastAPI, Response, status, HTTPException
+from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
 from pydantic import BaseModel
 from typing import Optional, Any
 from random import randrange
+import models
+from database import engine, get_db
+from sqlalchemy.orm import Session
+
 import time
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# from dotenv import load_dotenv
+
+# load_dotenv()
 
 from logconfig import MyLoggingConnection, logger
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+models.Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
 
-env_path = ".env"
 
 # Pydantic Basemodel: https://pydantic-docs.helpmanual.io/usage/models/
 
@@ -29,45 +35,35 @@ class Post(BaseModel):
     )
 
 
-while True:
-    try:
-        conn = psycopg2.connect(
-            connection_factory=MyLoggingConnection,
-            host=os.environ.get("dbhost"),
-            database=os.environ.get("dbname"),
-            user=os.environ.get("dbuser"),
-            password=os.environ.get("dbpass"),
-            cursor_factory=RealDictCursor,
-        )
-        conn.initialize(logger)
-        cursor = conn.cursor()
-        print("Database connection successful")
-        break
-    except Exception as error:
-        print(f"Connection to DB failed. Error: {error}")
-        time.sleep(2)
-
-
 # Get ALL posts
 
 
 @app.get("/posts")
-def get_posts():
-    cursor.execute("""SELECT * FROM POSTS """)
-    posts = cursor.fetchall()
-    print(posts)
+def get_posts(db: Session = Depends(get_db)):
+    # cursor.execute("""SELECT * FROM POSTS """)
+    # posts = cursor.fetchall()
+
+    posts = db.query(models.Post).all()
     return {"data": posts}
 
 
 # post in the following is a model inherited from the Post class where our type validation is done.
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_posts(post: Post):
-    cursor.execute(
-        """INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,
-        (post.title, post.content, post.published),
-    )
-    new_post = cursor.fetchone()
-    conn.commit()
+def create_posts(post: Post, db: Session = Depends(get_db)):
+    # cursor.execute(
+    #     """INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,
+    #     (post.title, post.content, post.published),
+    # )
+    # new_post = cursor.fetchone()
+    # conn.commit()
+
+    new_post = models.Post(
+        **post.dict()
+    )  # Using unpacked dict to avoid typing out each column individually.
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)  # Similar to RETURNING
+
     return {"data": new_post}
 
 
@@ -77,7 +73,7 @@ def create_posts(post: Post):
 @app.get("/posts/latest")
 def get_latest_post():
     latest_post = my_posts[len(my_posts) - 1]
-    return {"detail": "latest_post"}
+    return {"detail": latest_post}
 
 
 # Get post by ID
@@ -127,3 +123,10 @@ def update_post(id: int, post: Post):
             detail=f"Post with ID: {id} not found",
         )
     return {"data": updated_post}
+
+
+@app.get("/sqlalchemy")
+def test_post(db: Session = Depends(get_db)):
+
+    posts = db.query(models.Post).all()
+    return {f"data": posts}
