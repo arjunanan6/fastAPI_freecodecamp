@@ -10,23 +10,12 @@ from sqlalchemy.orm import Session
 import time
 import os
 
-# from dotenv import load_dotenv
-
-# load_dotenv()
-
-from logconfig import MyLoggingConnection, logger
-
-import psycopg2
-from psycopg2.extras import RealDictCursor
-
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
 
 # Pydantic Basemodel: https://pydantic-docs.helpmanual.io/usage/models/
-
-
 class Post(BaseModel):
     title: str
     content: str
@@ -48,6 +37,9 @@ def get_posts(db: Session = Depends(get_db)):
 
 
 # post in the following is a model inherited from the Post class where our type validation is done.
+# Create a post
+
+
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 def create_posts(post: Post, db: Session = Depends(get_db)):
     # cursor.execute(
@@ -80,9 +72,10 @@ def get_latest_post():
 
 
 @app.get("/posts/{id}")
-def get_post(id: int, response: Response):
-    cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id)))
-    post = cursor.fetchone()
+def get_post(id: int, response: Response, db: Session = Depends(get_db)):
+    # cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id)))
+    # post = cursor.fetchone()
+    post = db.query(models.Post).filter(models.Post.id == id).first()
     if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -95,14 +88,18 @@ def get_post(id: int, response: Response):
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int):
-    cursor.execute("""DELETE FROM posts where id = %s RETURNING *""", (str(id)))
-    deleted_post = cursor.fetchone()
-    conn.commit()
-    if not deleted_post:
+def delete_post(id: int, db: Session = Depends(get_db)):
+    # cursor.execute("""DELETE FROM posts where id = %s RETURNING *""", (str(id)))
+    # deleted_post = cursor.fetchone()
+    # conn.commit()
+    post = db.query(models.Post).filter(models.Post.id == id)
+    if not post.first():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"post ID {id} not found."
         )
+
+    post.delete(synchronize_session=False)
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -110,23 +107,22 @@ def delete_post(id: int):
 
 
 @app.put("/posts/{id}")
-def update_post(id: int, post: Post):
-    cursor.execute(
-        """UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""",
-        (post.title, post.content, post.published, id),
-    )
-    updated_post = cursor.fetchone()
-    conn.commit()
-    if not updated_post:
+def update_post(id: int, post: Post, db: Session = Depends(get_db)):
+    # cursor.execute(
+    #     """UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""",
+    #     (post.title, post.content, post.published, id),
+    # )
+    # updated_post = cursor.fetchone()
+    # conn.commit()
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+    post_data = post_query.first()
+    if not post_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Post with ID: {id} not found",
         )
-    return {"data": updated_post}
-
-
-@app.get("/sqlalchemy")
-def test_post(db: Session = Depends(get_db)):
-
-    posts = db.query(models.Post).all()
-    return {f"data": posts}
+    post_query.update(post.dict(), synchronize_session=False)
+    db.commit()
+    return {
+        "data": post_query.first()
+    }  # Rerunning the query again to show the updated values.
